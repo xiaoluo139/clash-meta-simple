@@ -93,6 +93,8 @@
 > - 压缩包已内置 `mihomo.exe`（v1.19.31），开箱即用
 > - 不需要装 Python / Node / .NET SDK，Windows 10 / 11 自带 .NET Framework 4.x 就能跑
 
+![Windows 客户端界面](./windows/screenshot.png)
+
 ### 界面与交互
 
 和手机版保持一致：

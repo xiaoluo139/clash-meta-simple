@@ -3,6 +3,8 @@
 **原生 Windows 桌面程序**（WinForms，单个 `ClashSimple.exe`），内核使用 **mihomo**，
 与 Android 端 *Clash Simple* 配套，交互一致：**大圆环 = 总开关，下面几张卡 = 模式选择**。
 
+![Clash Simple for Windows](./screenshot.png)
+
 ## 📦 直接使用
 
 到 [Releases](../../releases) 下载 `ClashSimple-Windows-*.zip`，解压后：
