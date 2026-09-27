@@ -51,6 +51,7 @@
 | `cmfa-2.11.35-meta-armeabi-v7a-release.apk` | 老款 32 位设备 |
 | `cmfa-2.11.35-meta-x86 / x86_64-release.apk` | 模拟器 |
 | `cmfa-2.11.35-alpha-*.apk` | Alpha 通道版本 |
+| `ClashSimple-Windows-v2.11.35.zip` | **Windows 客户端**（含内核，解压即用） |
 
 ### ⚙️ 说明
 
