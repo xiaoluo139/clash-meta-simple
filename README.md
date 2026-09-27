@@ -68,8 +68,11 @@
 
 安装后首次启动需要授予 VPN 权限；再在「当前订阅」里导入你的订阅链接即可。
 
-> 包名 `com.github.metacubex.clash.meta`，与原版 CMFA 相同。
-> 如果你装过原版，需要先卸载（签名不同，无法覆盖安装）。
+> **包名已改为独立的 `com.github.xiaoluo139.clashsimple.meta`（Alpha 版为 `.alpha`）**
+> ，因此可以**和官方 ClashMetaForAndroid 同时安装、互不影响**。
+>
+> ⚠️ 如果你装过本项目 **2.11.35 之前的旧包**（包名为 `com.github.metacubex.clash.meta`），
+> 因为包名变了，旧的那个需要**手动卸载**一次；之后升级就不用了。
 
 ---
 

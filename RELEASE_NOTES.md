@@ -34,9 +34,14 @@
 
 ### ⚙️ 说明
 
-- 包名 `com.github.metacubex.clash.meta`（Alpha 版为 `.alpha`），版本 `2.11.35`
+- **包名已改为独立标识，可与官方版共存**：
+  - Meta 版：`com.github.xiaoluo139.clashsimple.meta`
+  - Alpha 版：`com.github.xiaoluo139.clashsimple.alpha`
+- 应用名显示为 **Clash Simple** / **Clash Simple Alpha**，不会和官方 App 混淆
+- 版本 `2.11.35`（与上一版相同，安装包已替换）
 - 支持 Android 5.0（API 21）及以上
-- 与上一版签名相同，可直接覆盖安装；若装过原版 CMFA 需先卸载
+- 与上一版签名相同；**与官方 ClashMetaForAndroid 可同时安装**（包名不同，不再冲突）
+- 若装过本项目 2.11.35 之前的旧包（旧包名），需先卸载一次旧包
 - 首次启动需授予 VPN 权限，然后在「当前订阅」导入订阅链接
 
 ### ⚠️ 免责声明
