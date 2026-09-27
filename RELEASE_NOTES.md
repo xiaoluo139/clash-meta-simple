@@ -34,7 +34,8 @@
 
 同一个 Release 里新增了 Windows 版：**`ClashSimple-Windows-v2.11.35.zip`**
 
-- 解压后双击 `Start.bat` 即可，**已内置 mihomo 内核**（v1.19.31），不需要装 Python / Node
+- **原生 WinForms 桌面程序**：解压后双击 `ClashSimple.exe` 即可（不是脚本、不是浏览器套壳）
+- 已内置 mihomo 内核（v1.19.31），不需要装 Python / Node / .NET SDK（Win10/11 自带 .NET Framework 4.x）
 - 交互与手机版一致：**大圆环 = 总开关**，下面三张卡 = 规则 / 全局 / 直连
 - 启动时自动设置 Windows 系统代理，停止时自动还原
 - 节点一键测速、**自动选择最快**、点击手动切换
