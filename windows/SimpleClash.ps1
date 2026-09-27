@@ -25,6 +25,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# .NET Framework 4.x 默认不一定启用 TLS 1.2，
+# 否则访问 GitHub / 订阅链接会报「未能创建 SSL/TLS 安全通道」
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
+} catch { }
 $Root         = Split-Path -Parent $MyInvocation.MyCommand.Path
 $CoreDir      = Join-Path $Root 'core'
 $DataDir      = Join-Path $Root 'data'

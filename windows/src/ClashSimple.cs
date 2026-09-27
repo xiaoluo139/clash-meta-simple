@@ -26,9 +26,30 @@ namespace ClashSimple
         [STAThread]
         private static void Main(string[] args)
         {
+            // 必须在任何 HTTPS 请求之前执行（默认未开启 TLS 1.2）
+            Net.Configure();
+
             if (args.Length > 0 && args[0] == "--selftest")
             {
                 SelfTest.Run();
+                return;
+            }
+
+            if (args.Length > 0 && args[0] == "--testhttps")
+            {
+                SelfTest.TestHttps(args.Length > 1 ? args[1] : null);
+                return;
+            }
+
+            if (args.Length > 0 && args[0] == "--testcore")
+            {
+                SelfTest.TestCore();
+                return;
+            }
+
+            if (args.Length > 0 && args[0] == "--testsub")
+            {
+                SelfTest.TestSub(args.Length > 1 ? args[1] : null);
                 return;
             }
 
@@ -112,18 +133,19 @@ namespace ClashSimple
 
         public static void EnsureCore()
         {
-            if (File.Exists(Env.CoreExe)) return;
+            EnsureCore(false);
+        }
+
+        public static void EnsureCore(bool force)
+        {
+            if (!force && File.Exists(Env.CoreExe)) return;
 
             if (!Directory.Exists(Env.CoreDir)) Directory.CreateDirectory(Env.CoreDir);
 
             string api = "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest";
             string json;
 
-            using (var wc = new WebClient())
-            {
-                wc.Headers.Add("User-Agent", "ClashSimple");
-                json = wc.DownloadString(api);
-            }
+            json = Net.DownloadString(api);
 
             var ser = new JavaScriptSerializer();
             var release = ser.Deserialize<Dictionary<string, object>>(json);
@@ -147,11 +169,7 @@ namespace ClashSimple
 
             string zip = Path.Combine(Env.CoreDir, "mihomo.zip");
 
-            using (var wc = new WebClient())
-            {
-                wc.Headers.Add("User-Agent", "ClashSimple");
-                wc.DownloadFile(url, zip);
-            }
+            Net.DownloadFile(url, zip);
 
             string extractDir = Path.Combine(Env.CoreDir, "extract");
             if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true);
@@ -474,13 +492,7 @@ namespace ClashSimple
         {
             Env.EnsureData();
 
-            string content;
-
-            using (var wc = new WebClient())
-            {
-                wc.Headers.Add("User-Agent", "ClashforWindows/0.20.39");
-                content = wc.DownloadString(url);
-            }
+            string content = Net.DownloadString(url);
 
             File.WriteAllText(Env.ProfileFile, content, new UTF8Encoding(false));
 
@@ -911,7 +923,7 @@ namespace ClashSimple
                 }
                 catch (Exception ex)
                 {
-                    SetStatus("出错：" + ex.Message);
+                    SetStatus("出错：" + Net.Friendly(ex));
                 }
                 finally
                 {
@@ -1153,7 +1165,7 @@ namespace ClashSimple
     /// 无界面自检：启动内核 -> 查询状态 -> 切模式 -> 测速 -> 停止。
     /// 结果同时写入 data/selftest.log（因为 win exe 没有控制台）。
     /// </summary>
-    internal static class SelfTest
+    internal static partial class SelfTest
     {
         private static StringBuilder _log = new StringBuilder();
 
@@ -1212,6 +1224,222 @@ namespace ClashSimple
                 File.WriteAllText(Path.Combine(Env.DataDir, "selftest.log"), _log.ToString(), Encoding.UTF8);
             }
             catch { }
+        }
+    }
+}
+namespace ClashSimple
+{
+    /// <summary>
+    /// 统一的网络下载。
+    ///
+    /// 关键点：.NET Framework 4.x 默认不一定启用 TLS 1.2，
+    /// 直接访问 GitHub / 订阅链接会报
+    /// 「请求被中止: 未能创建 SSL/TLS 安全通道」，
+    /// 所以这里显式打开 TLS 1.2（并尝试 TLS 1.3）。
+    /// </summary>
+    internal static class Net
+    {
+        private static bool _configured;
+
+        public static void Configure()
+        {
+            if (_configured) return;
+            _configured = true;
+
+            try
+            {
+                ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072;  // TLS 1.2
+            }
+            catch { }
+
+            try
+            {
+                ServicePointManager.SecurityProtocol |= (SecurityProtocolType)12288; // TLS 1.3（运行时支持才生效）
+            }
+            catch { }
+
+            try { ServicePointManager.Expect100Continue = false; } catch { }
+        }
+
+        public static string UserAgent
+        {
+            get { return "ClashSimple/1.0 (Windows NT; .NET " + Environment.Version + ")"; }
+        }
+
+        private static HttpWebRequest Create(string url, int timeoutMs)
+        {
+            Configure();
+
+            var req = (HttpWebRequest)WebRequest.Create(url);
+            req.UserAgent = UserAgent;
+            req.Accept = "*/*";
+            req.AllowAutoRedirect = true;
+            req.Timeout = timeoutMs;
+            req.ReadWriteTimeout = timeoutMs;
+
+            try
+            {
+                req.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+            }
+            catch { }
+
+            return req;
+        }
+
+        public static string DownloadString(string url)
+        {
+            var req = Create(url, 120000);
+
+            using (var res = (HttpWebResponse)req.GetResponse())
+            using (var stream = res.GetResponseStream())
+            using (var reader = new StreamReader(stream, Encoding.UTF8))
+            {
+                return reader.ReadToEnd();
+            }
+        }
+
+        public static void DownloadFile(string url, string path)
+        {
+            var req = Create(url, 600000);
+
+            using (var res = (HttpWebResponse)req.GetResponse())
+            using (var stream = res.GetResponseStream())
+            using (var file = File.Create(path))
+            {
+                stream.CopyTo(file);
+            }
+        }
+
+        /// <summary>把常见网络异常翻译成看得懂的中文提示</summary>
+        public static string Friendly(Exception ex)
+        {
+            string msg = ex == null ? "" : ex.Message;
+
+            if (msg.IndexOf("SSL", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                msg.IndexOf("TLS", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "无法建立安全连接（SSL/TLS）。请先确认系统时间正确；" +
+                       "若仍失败，可尝试把订阅链接换成 http 开头的，或使用带代理的下载方式。";
+            }
+
+            if (msg.IndexOf("timed out", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                msg.IndexOf("超时", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "请求超时。请检查网络，或稍后重试（订阅站点可能被墙）。";
+            }
+
+            if (msg.IndexOf("404", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                msg.IndexOf("NotFound", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "链接无效（404）。请确认订阅地址是否正确、是否已过期。";
+            }
+
+            return msg;
+        }
+    }
+}
+namespace ClashSimple
+{
+    internal static partial class SelfTest
+    {
+        /// <summary>从 data/testurl.txt 读取待测试的 URL</summary>
+        private static string ReadTestUrl()
+        {
+            string file = Path.Combine(Env.DataDir, "testurl.txt");
+            if (!File.Exists(file)) throw new Exception("缺少 data/testurl.txt");
+            return File.ReadAllText(file, Encoding.UTF8).Trim();
+        }
+
+        /// <summary>测试 HTTPS 下载（用于验证 TLS 1.2 是否生效）</summary>
+        public static void TestHttps(string url)
+        {
+            Env.EnsureData();
+            if (string.IsNullOrEmpty(url)) url = ReadTestUrl();
+
+            var log = new StringBuilder();
+            log.AppendLine("[TestHttps] url = " + url);
+            log.AppendLine("[TestHttps] 系统默认 TLS 协议 = " + ServicePointManager.SecurityProtocol);
+
+            try
+            {
+                string text = Net.DownloadString(url);
+                log.AppendLine("[TestHttps] OK，下载长度 = " + text.Length + " 字符");
+            }
+            catch (Exception ex)
+            {
+                log.AppendLine("[TestHttps] FAIL: " + ex.Message);
+                log.AppendLine("[TestHttps] 友好提示: " + Net.Friendly(ex));
+            }
+
+            File.WriteAllText(Path.Combine(Env.DataDir, "nettest.log"), log.ToString(), Encoding.UTF8);
+        }
+
+        /// <summary>强制从 GitHub 重新下载内核（验证下载 + 解压链路）</summary>
+        public static void TestCore()
+        {
+            Env.EnsureData();
+
+            var log = new StringBuilder();
+
+            try
+            {
+                log.AppendLine("[TestCore] 强制重新下载内核…");
+                Core.EnsureCore(true);
+                log.AppendLine("[TestCore] OK，mihomo.exe 大小 = " + new FileInfo(Env.CoreExe).Length + " 字节");
+            }
+            catch (Exception ex)
+            {
+                log.AppendLine("[TestCore] FAIL: " + ex.Message);
+            }
+
+            File.WriteAllText(Path.Combine(Env.DataDir, "coretest.log"), log.ToString(), Encoding.UTF8);
+        }
+    }
+}
+namespace ClashSimple
+{
+    internal static partial class SelfTest
+    {
+        /// <summary>订阅端到端：下载 -> 保存 -> 生成配置 -> 启动内核 -> 读取节点</summary>
+        public static void TestSub(string url)
+        {
+            Env.EnsureData();
+            if (string.IsNullOrEmpty(url)) url = ReadTestUrl();
+
+            var log = new StringBuilder();
+
+            try
+            {
+                log.AppendLine("[TestSub] 下载订阅: " + url);
+                Core.SaveSubscription(url);
+                log.AppendLine("[TestSub] 已保存 profile.yaml，大小 = " +
+                               new FileInfo(Env.ProfileFile).Length + " 字节");
+
+                Core.BuildConfig();
+                log.AppendLine("[TestSub] 已生成 config.yaml");
+
+                Core.Start();
+                log.AppendLine("[TestSub] 内核启动 OK，版本 = " + Core.GetVersion());
+
+                var groups = Core.GetGroupNames();
+                log.AppendLine("[TestSub] 分组数 = " + groups.Count);
+
+                string group = Core.PickGroup(null);
+                log.AppendLine("[TestSub] 当前分组 = " + group);
+
+                string now;
+                var nodes = Core.GetNodes(group, out now);
+                log.AppendLine("[TestSub] 节点数 = " + nodes.Count + "，当前 = " + now);
+
+                Core.Stop();
+                log.AppendLine("[TestSub] 完成");
+            }
+            catch (Exception ex)
+            {
+                log.AppendLine("[TestSub] FAIL: " + ex.Message);
+            }
+
+            File.WriteAllText(Path.Combine(Env.DataDir, "subtest.log"), log.ToString(), Encoding.UTF8);
         }
     }
 }

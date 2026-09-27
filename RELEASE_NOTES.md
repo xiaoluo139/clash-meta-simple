@@ -32,6 +32,10 @@
 
 ### 🖥️ 新增 Windows 客户端
 
+> **修订**：修复「错误：请求被中止：未能创建 SSL/TLS 安全通道」。
+> 原因：.NET Framework 4.x 默认不一定启用 TLS 1.2，导致访问 GitHub / 订阅链接失败。
+> 现已显式开启 TLS 1.2（C# 版与 PowerShell 脚本版都已修复）。
+
 同一个 Release 里新增了 Windows 版：**`ClashSimple-Windows-v2.11.35.zip`**
 
 - **原生 WinForms 桌面程序**：解压后双击 `ClashSimple.exe` 即可（不是脚本、不是浏览器套壳）
