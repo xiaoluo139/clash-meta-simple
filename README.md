@@ -4,6 +4,7 @@
 > 在原版强大功能之上，加了一套「简易模式」首页，让第一次用 Clash 的人也能一次点会。
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
+[![Build APK](https://github.com/xiaoluo139/clash-meta-simple/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoluo139/clash-meta-simple/actions/workflows/build.yml)
 ![Platform](https://img.shields.io/badge/Platform-Android-green.svg)
 ![minSdk](https://img.shields.io/badge/minSdk-21-orange.svg)
 
@@ -159,6 +160,30 @@ key.password=你的密钥密码
 
 ---
 
+## 🤖 自动构建（GitHub Actions）
+
+仓库已配置 [`.github/workflows/build.yml`](./.github/workflows/build.yml)：
+
+| 触发 | 行为 |
+| --- | --- |
+| push 到 `main` / 提交 PR | 自动编译 Meta 版 **debug** APK，作为 Artifacts 上传（在 Actions 运行页底部下载） |
+| 手动触发 | 同上（Actions → Build APK → Run workflow） |
+| 推送 `v*` 标签 | 额外编译 **release** APK，并自动创建 Release 附上安装包 |
+
+想让它产出**你自己密钥签名的 release 包**，在仓库设置里加 4 个 Secrets
+（Settings → Secrets and variables → Actions）即可：
+
+| Secret | 说明 |
+| --- | --- |
+| `KEYSTORE_BASE64` | 密钥库文件转 base64：`base64 -w0 your.keystore` |
+| `KEYSTORE_PASSWORD` | 密钥库密码 |
+| `KEY_ALIAS` | 别名 |
+| `KEY_PASSWORD` | 密钥密码 |
+
+未配置时会回退成 debug 签名（仅供测试）。
+
+> 说明：如果某个 tag 下**已经存在 Release**（例如手工签名的正式版），
+> CI 会跳过上传，**不会覆盖你手工签名的安装包**。
 ## 📖 更多文档
 
 开发细节、实现原理、完整改动清单见 **[SIMPLE_MODE_NOTES.md](./SIMPLE_MODE_NOTES.md)**。
