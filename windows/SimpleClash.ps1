@@ -20,7 +20,8 @@ param(
     [string]$ApiSecret = 'simpleclash',
     [string]$TestUrl = 'https://www.gstatic.com/generate_204',
     [switch]$NoBrowser,
-    [switch]$SelfTest
+    [switch]$SelfTest,
+    [switch]$NoSystemProxy
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,7 +55,7 @@ function Ensure-Directory {
 
 function Get-Settings {
     if (Test-Path -LiteralPath $SettingsFile) {
-        try { return (Get-Content -LiteralPath $SettingsFile -Raw | ConvertFrom-Json) } catch { }
+        try { return (Get-Content -LiteralPath $SettingsFile -Raw -Encoding UTF8 | ConvertFrom-Json) } catch { }
     }
 
     return [pscustomobject]@{ profileUrl = ''; profileName = ''; mode = 'rule' }
@@ -63,7 +64,8 @@ function Get-Settings {
 function Save-Settings {
     param($Settings)
     Ensure-Directory $DataDir
-    $Settings | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $SettingsFile -Encoding UTF8
+    $json = $Settings | ConvertTo-Json -Depth 5
+    [System.IO.File]::WriteAllText($SettingsFile, $json, (New-Object System.Text.UTF8Encoding($false)))
 }
 # ---------------------------------------------------------------- 内核准备
 
@@ -100,7 +102,7 @@ $DefaultProfile = "proxies: []`nproxy-groups:`n  - name: PROXY`n    type: select
 
 function Get-ProfileText {
     if (Test-Path -LiteralPath $ProfileFile) {
-        return (Get-Content -LiteralPath $ProfileFile -Raw)
+        return (Get-Content -LiteralPath $ProfileFile -Raw -Encoding UTF8)
     }
 
     return $DefaultProfile
@@ -137,7 +139,8 @@ function New-MihomoConfig {
         ''
     )
 
-    ($header + $kept) -join "`r`n" | Set-Content -LiteralPath $ConfigFile -Encoding UTF8
+    $text = ($header + $kept) -join "`r`n"
+    [System.IO.File]::WriteAllText($ConfigFile, $text, (New-Object System.Text.UTF8Encoding($false)))
 }
 # ---------------------------------------------------------------- 内核进程
 
@@ -233,7 +236,24 @@ function Set-SystemProxyRegistry {
     }
 }
 
+function Restore-LeftoverSystemProxy {
+    if ($NoSystemProxy) { return }
+
+    try {
+        $k = Get-ItemProperty -Path $InternetSettingsKey -ErrorAction Stop
+
+        if ($k.ProxyEnable -eq 1 -and $k.ProxyServer -eq "127.0.0.1:$MixedPort") {
+            Write-Info '检测到上次残留的系统代理，正在还原'
+            Set-SystemProxyRegistry -Enabled $false
+        }
+    } catch { }
+}
 function Enable-SystemProxy {
+    if ($NoSystemProxy) {
+        Write-Info '（-NoSystemProxy：本次不修改系统代理）'
+        return
+    }
+
     if ($script:SystemProxyOn) { return }
 
     Set-SystemProxyRegistry -Enabled $true
@@ -255,15 +275,35 @@ function Invoke-MihomoApi {
         $Body = $null
     )
 
+    # 注意：不能用 Invoke-RestMethod —— Windows PowerShell 5.1 在响应头没有
+    # charset 时会按 Latin-1 解码 JSON，导致中文节点名变成乱码。
+    # 这里手工读取字节流并按 UTF-8 解码。
     $uri = "http://127.0.0.1:$ApiPort$Path"
-    $headers = @{ Authorization = "Bearer $ApiSecret" }
+    $request = [System.Net.HttpWebRequest]::Create($uri)
+    $request.Method = $Method
+    $request.Headers.Add('Authorization', "Bearer $ApiSecret")
+    $request.Timeout = 60000
+    $request.ReadWriteTimeout = 60000
 
     if ($null -ne $Body) {
         $json = $Body | ConvertTo-Json -Depth 8 -Compress
-        return Invoke-RestMethod -Method $Method -Uri $uri -Headers $headers -ContentType 'application/json' -Body $json -TimeoutSec 60
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+        $request.ContentType = 'application/json; charset=utf-8'
+        $request.ContentLength = $bytes.Length
+        $stream = $request.GetRequestStream()
+        $stream.Write($bytes, 0, $bytes.Length)
+        $stream.Close()
     }
 
-    return Invoke-RestMethod -Method $Method -Uri $uri -Headers $headers -TimeoutSec 60
+    $response = $request.GetResponse()
+    $reader = New-Object System.IO.StreamReader($response.GetResponseStream(), [System.Text.Encoding]::UTF8)
+    $text = $reader.ReadToEnd()
+    $reader.Close()
+    $response.Close()
+
+    if ([string]::IsNullOrWhiteSpace($text)) { return $null }
+
+    return ($text | ConvertFrom-Json)
 }
 
 function Get-AllProxies {
@@ -356,6 +396,8 @@ function Get-State {
         version     = ''
         group       = ''
         now         = ''
+        nodeDelay   = 0
+        systemProxy = $script:SystemProxyOn
         groups      = @()
         nodes       = @()
     }
@@ -381,6 +423,9 @@ function Get-State {
             $state.group = $current.name
             $state.now = $current.now
             $state.nodes = @(Get-GroupNodes -Group $current.name)
+
+            $nowNode = $state.nodes | Where-Object { $_.name -eq $state.now } | Select-Object -First 1
+            if ($nowNode) { $state.nodeDelay = [int]$nowNode.delay }
         }
     } catch { }
 
@@ -445,7 +490,7 @@ function Save-Subscription {
     $content = $response.Content
     if ($content -is [byte[]]) { $content = [System.Text.Encoding]::UTF8.GetString($content) }
 
-    Set-Content -LiteralPath $ProfileFile -Value $content -Encoding UTF8
+    [System.IO.File]::WriteAllText($ProfileFile, $content, (New-Object System.Text.UTF8Encoding($false)))
 
     $settings = Get-Settings
     $settings.profileUrl = $Url
@@ -687,6 +732,8 @@ function Invoke-SelfTest {
 
 Ensure-Directory $DataDir
 $script:Running = $true
+
+Restore-LeftoverSystemProxy
 if ($SelfTest) {
     Invoke-SelfTest
     exit 0
@@ -702,6 +749,21 @@ if (-not $NoBrowser) { Start-Ui }
 
 try {
     while ($script:Running) {
+        # 看门狗：已开启系统代理但内核失联（异常退出/卡死）时立即还原，避免本机断网
+        if ($script:SystemProxyOn) {
+            if (Test-ApiAlive) {
+                $script:ApiMissCount = 0
+            } else {
+                $script:ApiMissCount = [int]$script:ApiMissCount + 1
+
+                if ($script:ApiMissCount -ge 3) {
+                    Write-Info '内核已失联，正在还原系统代理'
+                    Disable-SystemProxy
+                    $script:ApiMissCount = 0
+                }
+            }
+        }
+
         if (-not $listener.Pending()) {
             Start-Sleep -Milliseconds 60
             continue

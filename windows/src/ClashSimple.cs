@@ -402,7 +402,9 @@ namespace ClashSimple
 {
     internal static partial class Core
     {
-        private static JavaScriptSerializer Ser = new JavaScriptSerializer();
+        // 注意：JavaScriptSerializer 默认只允许 2MB JSON，
+        // 节点很多的大订阅会被截断/直接报错，这里放开限制。
+        private static JavaScriptSerializer Ser = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
 
         /// <summary>调用 mihomo 的 RESTful API</summary>
         public static string Api(string method, string path, string body)
