@@ -1,0 +1,6 @@
+# mihomo 内核（由程序自动下载，或随发布包分发）
+mihomo.exe
+*.zip
+
+# 运行时生成
+/data/

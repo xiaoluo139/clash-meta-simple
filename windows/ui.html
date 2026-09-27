@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Clash Simple for Windows</title>
+<style>
+  :root {
+    --bg: #f4f6fa;
+    --card: #ffffff;
+    --text: #1b1f26;
+    --muted: #6b7280;
+    --primary: #1e4376;
+    --primary-soft: #e6ecf7;
+    --ok: #2e7d32;
+    --warn: #ef6c00;
+    --bad: #c62828;
+    --idle: #9e9e9e;
+    --line: rgba(0,0,0,.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif;
+    -webkit-user-select: none; user-select: none;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 18px 20px 40px; }
+  header { display: flex; align-items: center; gap: 12px; padding: 6px 0 14px; }
+  header .logo {
+    width: 38px; height: 38px; border-radius: 10px; background: var(--primary);
+    color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 20px;
+  }
+  header h1 { font-size: 18px; margin: 0; flex: 1; }
+  .btn {
+    border: 1px solid var(--line); background: var(--card); color: var(--text);
+    padding: 8px 14px; border-radius: 10px; cursor: pointer; font-size: 13px;
+    transition: transform .12s ease, background .2s ease;
+  }
+  .btn:hover { background: #eef1f7; }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--primary); color: #fff; border-color: transparent; }
+  .btn.primary:hover { background: #24507f; }
+  .btn[disabled] { opacity: .5; cursor: default; }
+
+  .status { text-align: center; padding: 22px 0 4px; }
+  .orb {
+    width: 150px; height: 150px; border-radius: 50%; margin: 0 auto 16px;
+    background: radial-gradient(circle at 35% 30%, #9aa0a8, #7c828b);
+    display: grid; place-items: center; cursor: pointer;
+    box-shadow: 0 10px 30px rgba(30,40,60,.18);
+    transition: transform .16s ease, background .35s ease, box-shadow .35s ease;
+  }
+  .orb:active { transform: scale(.95); }
+  .orb.on {
+    background: radial-gradient(circle at 35% 30%, #3a6ea8, var(--primary));
+    box-shadow: 0 12px 34px rgba(30,67,118,.35);
+  }
+  .orb svg { width: 62px; height: 62px; stroke: #fff; stroke-width: 7; fill: none;
+             stroke-linecap: round; }
+  .status .state { font-size: 22px; font-weight: 600; }
+  .status .hint { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .status .meta { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 16px; margin-top: 12px;
+    transition: background .2s ease, border-color .2s ease;
+  }
+  .card.selectable { cursor: pointer; display: flex; align-items: center; gap: 14px; }
+  .card.selectable:hover { border-color: rgba(30,67,118,.35); }
+  .card.active { background: var(--primary-soft); border-color: rgba(30,67,118,.45); }
+  .card .icon { width: 34px; text-align: center; font-size: 20px; }
+  .card .body { flex: 1; }
+  .card .title { font-size: 15px; font-weight: 600; }
+  .card .desc { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .card .check { color: var(--primary); font-size: 18px; opacity: 0; transition: opacity .2s; }
+  .card.active .check { opacity: 1; }
+</style>  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .row + .row { margin-top: 10px; }
+  input[type=text] {
+    flex: 1; min-width: 220px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: #fff; color: var(--text); font-size: 13px;
+  }
+  .list { max-height: 360px; overflow: auto; margin-top: 6px; }
+  .node {
+    display: flex; align-items: center; gap: 12px; padding: 11px 12px;
+    border-radius: 10px; cursor: pointer; transition: background .15s ease;
+  }
+  .node:hover { background: #f2f5fa; }
+  .node.current { background: var(--primary-soft); }
+  .node .name { flex: 1; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .node .type { color: var(--muted); font-size: 12px; }
+  .node .delay { font-size: 13px; font-variant-numeric: tabular-nums; min-width: 62px; text-align: right; }
+  .node .tick { color: var(--primary); width: 18px; opacity: 0; }
+  .node.current .tick { opacity: 1; }
+  .muted { color: var(--muted); font-size: 12.5px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
+    background: #1b1f26; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: all .25s ease; max-width: 80vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">C</div>
+    <h1>Clash Simple <span class="muted" id="version"></span></h1>
+    <button class="btn" id="btnIp">IP 检测</button>
+  </header>
+
+  <div class="status">
+    <div class="orb" id="orb">
+      <svg viewBox="0 0 100 100" id="orbIcon">
+        <path d="M50 20 V48" />
+        <path d="M28 34 A30 30 0 1 0 72 34" />
+      </svg>
+    </div>
+    <div class="state" id="stateText">未连接</div>
+    <div class="hint" id="hintText">点击圆环启动代理</div>
+    <div class="meta" id="metaText"></div>
+  </div>
+
+  <div class="card selectable" data-mode="rule">
+    <div class="icon">⚡</div>
+    <div class="body">
+      <div class="title">规则模式</div>
+      <div class="desc">按订阅规则分流（推荐）</div>
+    </div>
+    <div class="check">✓</div>
+  </div>
+
+  <div class="card selectable" data-mode="global">
+    <div class="icon">🌐</div>
+    <div class="body">
+      <div class="title">全局模式</div>
+      <div class="desc">所有流量都走代理</div>
+    </div>
+    <div class="check">✓</div>
+  </div>
+
+  <div class="card selectable" data-mode="direct">
+    <div class="icon">➡️</div>
+    <div class="body">
+      <div class="title">直连模式</div>
+      <div class="desc">不经过代理</div>
+    </div>
+    <div class="check">✓</div>
+  </div>  <div class="card">
+    <div class="row">
+      <strong style="flex:1">节点</strong>
+      <span class="muted" id="groupName"></span>
+      <button class="btn" id="btnTest">测速</button>
+      <button class="btn primary" id="btnAuto">自动选择最快</button>
+    </div>
+    <div class="muted" id="nodeHint" style="margin-top:8px">点击任意节点即可切换，当前节点带勾选标记</div>
+    <div class="list" id="nodeList"></div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <strong style="flex:1">订阅</strong>
+      <span class="muted" id="profileName">未设置</span>
+    </div>
+    <div class="row">
+      <input type="text" id="profileUrl" placeholder="粘贴订阅链接（http/https）" />
+      <button class="btn primary" id="btnSaveProfile">保存并应用</button>
+      <button class="btn" id="btnUpdateProfile">更新订阅</button>
+    </div>
+    <div class="muted" style="margin-top:8px">
+      支持 Clash / mihomo 订阅。保存后会自动重启内核生效。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <strong style="flex:1">系统代理</strong>
+      <span class="muted" id="proxyState"></span>
+    </div>
+    <div class="muted" style="margin-top:8px">
+      启动代理时会自动把 Windows 系统代理指向 <span id="proxyAddr"></span>，停止时自动还原。
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div><script>
+const $ = (id) => document.getElementById(id);
+let state = null;
+let busy = false;
+let currentGroup = '';
+
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+async function api(path, options) {
+  const res = await fetch(path, Object.assign(
+    { headers: { 'Content-Type': 'application/json' } }, options || {}));
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch (e) { data = { ok: false, error: text }; }
+  if (!res.ok) throw new Error((data && data.error) ? data.error : ('HTTP ' + res.status));
+  return data;
+}
+
+function delayText(d) {
+  if (!d || d <= 0) return '未测速';
+  if (d >= 65535) return '超时';
+  return d + ' ms';
+}
+
+function delayColor(d) {
+  if (!d || d <= 0) return 'var(--idle)';
+  if (d >= 65535) return 'var(--bad)';
+  if (d <= 200) return 'var(--ok)';
+  if (d <= 500) return 'var(--warn)';
+  if (d <= 2000) return '#f9a825';
+  return 'var(--bad)';
+}
+
+const MODE_NAMES = { rule: '规则模式', global: '全局模式', direct: '直连模式' };
+
+function render() {
+  if (!state) return;
+
+  const running = !!state.running;
+  $('orb').classList.toggle('on', running);
+  $('stateText').textContent = running ? '已连接' : '未连接';
+  $('hintText').textContent = running ? '点击圆环断开代理' : '点击圆环启动代理';
+  $('version').textContent = state.version ? ('v' + state.version) : '';
+
+  const mode = state.mode || 'rule';
+  document.querySelectorAll('.card[data-mode]').forEach(function (el) {
+    el.classList.toggle('active', el.dataset.mode === mode);
+  });
+
+  $('metaText').textContent = (MODE_NAMES[mode] || mode) + (running ? (' · ' + (state.now || '未选择节点')) : '');
+  $('proxyAddr').textContent = '127.0.0.1:' + state.mixedPort;
+  $('proxyState').textContent = running ? '已开启' : '未开启';
+  $('groupName').textContent = state.group ? ('分组：' + state.group) : '';
+  $('profileName').textContent = state.profileName || '未设置';
+
+  if (state.profileUrl && document.activeElement !== $('profileUrl')) {
+    $('profileUrl').value = state.profileUrl;
+  }
+
+  const list = $('nodeList');
+  const nodes = state.nodes || [];
+
+  if (!running) {
+    list.innerHTML = '<div class="muted" style="padding:12px">先点击圆环启动代理，再选择节点</div>';
+    return;
+  }
+  if (!nodes.length) {
+    list.innerHTML = '<div class="muted" style="padding:12px">没有可用的节点组（请先设置订阅）</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  nodes.forEach(function (n) {
+    const div = document.createElement('div');
+    div.className = 'node' + (n.name === state.now ? ' current' : '');
+
+    const tick = document.createElement('span');
+    tick.className = 'tick';
+    tick.textContent = '✓';
+
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = n.name;
+
+    const type = document.createElement('span');
+    type.className = 'type';
+    type.textContent = n.isGroup ? '节点组' : (n.type || '');
+
+    const delay = document.createElement('span');
+    delay.className = 'delay';
+    if (n.isGroup) {
+      delay.textContent = '—';
+      delay.style.color = 'var(--muted)';
+    } else {
+      delay.textContent = delayText(n.delay);
+      delay.style.color = delayColor(n.delay);
+    }
+
+    div.appendChild(tick);
+    div.appendChild(name);
+    div.appendChild(type);
+    div.appendChild(delay);
+
+    if (!n.isGroup) {
+      div.addEventListener('click', function () { selectNode(n.name); });
+    }
+
+    list.appendChild(div);
+  });
+}
+
+async function refresh() {
+  if (busy) return;
+  try {
+    const q = currentGroup ? ('?group=' + encodeURIComponent(currentGroup)) : '';
+    state = await api('/api/state' + q);
+    if (state.group) currentGroup = state.group;
+    render();
+  } catch (e) { }
+}
+
+async function withBusy(fn) {
+  if (busy) return;
+  busy = true;
+  try { await fn(); } catch (e) { toast(e.message || String(e)); } finally { busy = false; }
+}
+async function selectNode(name) {
+  await withBusy(async function () {
+    await api('/api/select?group=' + encodeURIComponent(state.group) + '&name=' + encodeURIComponent(name),
+      { method: 'POST', body: '{}' });
+    await refresh();
+    toast('已选择：' + name);
+  });
+}
+
+$('orb').addEventListener('click', function () {
+  withBusy(async function () {
+    const path = (state && state.running) ? '/api/stop' : '/api/start';
+    state = await api(path, { method: 'POST', body: '{}' });
+    render();
+    toast(state.running ? '代理已启动' : '代理已停止');
+  });
+});
+
+document.querySelectorAll('.card[data-mode]').forEach(function (el) {
+  el.addEventListener('click', function () {
+    withBusy(async function () {
+      await api('/api/mode', { method: 'POST', body: JSON.stringify({ mode: el.dataset.mode }) });
+      await refresh();
+      toast('已切换到' + el.querySelector('.title').textContent);
+    });
+  });
+});
+
+$('btnTest').addEventListener('click', function () {
+  withBusy(async function () {
+    if (!state || !state.running) { toast('请先启动代理'); return; }
+    toast('正在测速…');
+    await api('/api/test?group=' + encodeURIComponent(state.group), { method: 'POST', body: '{}' });
+    await refresh();
+    toast('测速完成');
+  });
+});
+
+$('btnAuto').addEventListener('click', function () {
+  withBusy(async function () {
+    if (!state || !state.running) { toast('请先启动代理'); return; }
+    toast('正在测速并挑选最快节点…');
+    const r = await api('/api/auto?group=' + encodeURIComponent(state.group),
+      { method: 'POST', body: '{}' });
+    await refresh();
+    toast(r.ok ? ('已自动选择：' + r.name + '（' + r.delay + ' ms）') : (r.error || '没有可用节点'));
+  });
+});
+
+$('btnSaveProfile').addEventListener('click', function () {
+  const url = $('profileUrl').value.trim();
+  if (!url) { toast('请先填写订阅链接'); return; }
+  withBusy(async function () {
+    toast('正在下载订阅…');
+    await api('/api/profile', { method: 'POST', body: JSON.stringify({ url: url }) });
+    await refresh();
+    toast('订阅已保存并生效');
+  });
+});
+
+$('btnUpdateProfile').addEventListener('click', function () {
+  withBusy(async function () {
+    toast('正在更新订阅…');
+    await api('/api/update', { method: 'POST', body: '{}' });
+    await refresh();
+    toast('订阅已更新');
+  });
+});
+
+$('btnIp').addEventListener('click', function () {
+  window.open('https://ip.skk.moe/', '_blank');
+});
+
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

@@ -1,7 +1,12 @@
 # Clash Meta Simple（简易版）
 
-> 基于 [Clash Meta for Android](https://github.com/MetaCubeX/ClashMetaForAndroid) 二次开发的**新手友好版**。
-> 在原版强大功能之上，加了一套「简易模式」首页，让第一次用 Clash 的人也能一次点会。
+> **跨平台的 Clash 简易客户端**：Android 端基于
+> [Clash Meta for Android](https://github.com/MetaCubeX/ClashMetaForAndroid) 二次开发，
+> Windows 端是基于同一内核 [mihomo](https://github.com/MetaCubeX/mihomo) 的轻量外壳。
+> 两端都保留了「简易模式」的交互：**大圆环 = 总开关，下面几张卡 = 模式选择**，
+> 并内置 **IP 检测**。
+>
+> **支持平台：Android 📱 / Windows 🖥️**
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 [![Build APK](https://github.com/xiaoluo139/clash-meta-simple/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoluo139/clash-meta-simple/actions/workflows/build.yml)
@@ -76,6 +81,48 @@
 
 ---
 
+## 🖥️ Windows 版
+
+同一个仓库里还有一个 Windows 客户端（`windows/` 目录），内核同样是 **mihomo**。
+
+### 下载
+
+到 **[Releases](../../releases)** 下载 `ClashSimple-Windows-*.zip`，**解压后双击 `Start.bat`** 即可。
+
+> 压缩包已内置 `mihomo.exe`（v1.19.31），开箱即用；
+> 如果自己删掉了内核，首次启动会自动从 mihomo 官方仓库下载。
+
+### 界面与交互
+
+和手机版保持一致：
+
+- **大圆环 = 总开关**：点一下启动 / 停止，启动时自动设置 Windows 系统代理，停止时自动还原
+- **下面三张卡 = 模式选择**：规则 / 全局 / 直连，点击只切换模式，不会误触发启动
+- **节点区**：一键测速、**自动选择最快**、点击任意节点手动切换（当前节点高亮 + 勾选）
+- **订阅区**：粘贴订阅链接保存、一键更新
+- **右上角 IP 检测**：打开 <https://ip.skk.moe/>
+
+### 「自动选择最快」是怎么保证选到能用的节点的
+
+Windows 端调用内核的 `/group/{分组}/delay` 接口，**该接口只返回测速成功的节点**
+（超时/不可用的不会出现在结果里），所以直接取其中延迟最低的即可，天然不会选中超时节点。
+
+### 环境要求
+
+- Windows 10 / 11（自带 PowerShell 5.1 与 Edge 即可，**不需要装 Python / Node**）
+- 界面默认用 **Edge 的应用窗口模式**打开，看起来就是一个独立程序
+
+### 源码结构
+
+```
+windows/
+├── Start.bat          双击启动
+├── SimpleClash.ps1    主程序（本地 HTTP 服务 + 内核管理 + 系统代理）
+├── ui.html            界面
+└── core/              mihomo.exe（发布包内置，缺失时自动下载）
+```
+
+详见 [`windows/README.md`](./windows/README.md)。
 ## 🌐 获取订阅（节点）
 
 本 App 只是客户端，**需要你自己提供 Clash 订阅链接**才能使用。
@@ -217,7 +264,7 @@ key.password=你的密钥密码
 
 ## English Summary
 
-**Clash Meta Simple** is a beginner-friendly fork of Clash Meta for Android featuring:
+**Clash Meta Simple** is a beginner-friendly Clash client for **Android and Windows** featuring:
 
 - A **Simple Mode home screen** with two explicit start buttons (rule-based / global), animated status orb, persistent routing mode, live node latency and one-tap subscription update
 - A **graphical custom-rule editor**: add/reorder/swipe-delete rules, built-in & user templates, import/export/share, **local rule testing (IPv4/IPv6)**, and **real per-rule hit counters** read from the mihomo core
@@ -227,5 +274,11 @@ key.password=你的密钥密码
 Custom rules are *prepended* to the subscription rules by the native layer, with an
 automatic fallback that reloads without them if they fail to parse — a bad rule can
 never take the tunnel down.
+
+**Windows client**: ships the same mihomo core behind a small PowerShell + HTML shell
+(no Python/Node needed). Big orb = master switch, cards = mode selection, node latency
+test, *auto-pick-fastest* (the core's delay API only returns reachable nodes, so a timeout
+can never be picked), subscription import/update, one-click system proxy, and a built-in
+IP check (ip.skk.moe).
 
 Licensed under **GPL-3.0**, same as the upstream project.
