@@ -69,7 +69,7 @@
                         android:textColor="?attr/colorPrimary" />
                 </LinearLayout>
 
-                <!-- Status -->
+                <!-- Master switch -->
 
                 <com.github.kr328.clash.design.view.ConnectOrbView
                     android:id="@+id/orbView"
@@ -83,6 +83,16 @@
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6" />
+
+                <TextView
+                    android:id="@+id/tapHintView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:alpha="0.6"
+                    android:gravity="center"
+                    android:text="@string/tap_to_connect"
+                    android:textAppearance="@style/TextAppearance.MaterialComponents.Body2" />
 
                 <TextView
                     android:id="@+id/modeStatusView"
@@ -102,79 +112,25 @@
                     android:gravity="center"
                     android:textAppearance="@style/TextAppearance.MaterialComponents.Body2" />
 
-                <!-- Actions: not connected -->
+                <!-- Routing mode selection (does not start the tunnel) -->
 
-                <LinearLayout
-                    android:id="@+id/groupStopped"
+                <com.github.kr328.clash.design.view.LargeActionCard
+                    android:id="@+id/ruleModeCard"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/simple_entries_margin_top"
-                    android:orientation="vertical">
+                    app:icon="@drawable/ic_baseline_flash_on"
+                    app:subtext="@string/start_rule_proxy_desc"
+                    app:text="@string/rule_mode" />
 
-                    <com.github.kr328.clash.design.view.LargeActionCard
-                        android:id="@+id/startRuleCard"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginVertical="@dimen/main_card_margin_vertical"
-                        android:theme="@style/AppThemeDark"
-                        app:icon="@drawable/ic_baseline_flash_on"
-                        app:subtext="@string/start_rule_proxy_desc"
-                        app:text="@string/start_rule_proxy" />
-
-                    <com.github.kr328.clash.design.view.LargeActionCard
-                        android:id="@+id/startGlobalCard"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginVertical="@dimen/main_card_margin_vertical"
-                        app:icon="@drawable/ic_baseline_vpn_lock"
-                        app:subtext="@string/start_global_proxy_desc"
-                        app:text="@string/start_global_proxy" />
-
-                    <TextView
-                        android:id="@+id/lastModeView"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:alpha="0.6"
-                        android:gravity="center"
-                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-                        android:visibility="gone" />
-                </LinearLayout>
-
-                <!-- Actions: connected -->
-
-                <LinearLayout
-                    android:id="@+id/groupRunning"
+                <com.github.kr328.clash.design.view.LargeActionCard
+                    android:id="@+id/globalModeCard"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/simple_entries_margin_top"
-                    android:orientation="vertical"
-                    android:visibility="gone">
-
-                    <com.github.kr328.clash.design.view.LargeActionCard
-                        android:id="@+id/stopCard"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginVertical="@dimen/main_card_margin_vertical"
-                        android:theme="@style/AppThemeDark"
-                        app:icon="@drawable/ic_baseline_stop"
-                        app:subtext="@string/stop_proxy_desc"
-                        app:text="@string/stop_proxy" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:alpha="0.6"
-                        android:text="@string/switch_mode_title"
-                        android:textAppearance="@style/TextAppearance.MaterialComponents.Caption" />
-
-                    <com.github.kr328.clash.design.view.ModeSegmentedControl
-                        android:id="@+id/modeControl"
-                        android:layout_width="match_parent"
-                        android:layout_height="@dimen/simple_segmented_height"
-                        android:layout_marginTop="8dp" />
-                </LinearLayout>
+                    android:layout_marginTop="@dimen/main_card_margin_vertical"
+                    app:icon="@drawable/ic_baseline_vpn_lock"
+                    app:subtext="@string/start_global_proxy_desc"
+                    app:text="@string/global_mode" />
 
                 <!-- Quick entries -->
 
@@ -200,6 +156,14 @@
                     app:icon="@drawable/ic_baseline_sync"
                     app:subtext="@string/update_profile_hint"
                     app:text="@string/update_profile" />
+
+                <com.github.kr328.clash.design.view.LargeActionLabel
+                    android:id="@+id/ipCheckLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:icon="@drawable/ic_baseline_search"
+                    app:subtext="@string/ip_check_hint"
+                    app:text="@string/ip_check" />
 
                 <View
                     android:layout_width="match_parent"

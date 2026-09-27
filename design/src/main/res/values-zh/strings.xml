@@ -393,4 +393,10 @@
     <string name="template_delete">删除</string>
     <string name="template_empty">当前没有规则可保存</string>
     <string name="template_deleted">模板已删除</string>
+    <!-- Simple mode: master switch & IP check -->
+    <string name="tap_to_disconnect">点击断开代理</string>
+    <string name="current_mode_is">当前：%1$s</string>
+    <string name="ip_check">IP 检测</string>
+    <string name="ip_check_hint">查看当前出口 IP 与连通性</string>
+    <string name="reload_page">刷新页面</string>
 </resources>

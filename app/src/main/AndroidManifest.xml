@@ -173,6 +173,11 @@
             android:exported="false"
             android:label="@string/meta_features" />
         <activity
+            android:name=".IpCheckActivity"
+            android:configChanges="uiMode"
+            android:exported="false"
+            android:label="@string/ip_check" />
+        <activity
             android:name=".NodesActivity"
             android:configChanges="uiMode"
             android:exported="false"

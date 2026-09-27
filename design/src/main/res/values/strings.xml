@@ -484,4 +484,10 @@
     <string name="template_delete">Delete</string>
     <string name="template_empty">There are no rules to save</string>
     <string name="template_deleted">Template deleted</string>
+    <!-- Simple mode: master switch & IP check -->
+    <string name="tap_to_disconnect">Tap to disconnect</string>
+    <string name="current_mode_is">Current: %1$s</string>
+    <string name="ip_check">IP Check</string>
+    <string name="ip_check_hint">Check your exit IP and connectivity</string>
+    <string name="reload_page">Reload</string>
 </resources>

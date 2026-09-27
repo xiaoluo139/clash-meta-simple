@@ -1,7 +1,9 @@
 package com.github.kr328.clash.design.view
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
+import android.view.View
 import android.util.AttributeSet
 import androidx.annotation.AttrRes
 import com.github.kr328.clash.design.R
@@ -34,6 +36,19 @@ class LargeActionCard @JvmOverloads constructor(
         set(value) {
             binding.iconView.background = value
         }
+
+    /**
+     * 显示/隐藏右侧勾选标记。
+     *
+     * 注意不能叫 selected —— 会和 View.setSelected 撞 JVM 签名。
+     */
+    fun setSelectionMark(visible: Boolean) {
+        binding.checkView.visibility = if (visible) View.VISIBLE else View.GONE
+    }
+
+    fun setSelectedColor(color: Int) {
+        binding.checkView.imageTintList = ColorStateList.valueOf(color)
+    }
 
     init {
         context.resolveClickableAttrs(attributeSet, defStyleAttr) {

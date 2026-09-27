@@ -15,9 +15,9 @@
             android:layout_marginHorizontal="@dimen/large_item_header_margin_horizontal" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="@dimen/large_item_tailing_margin_horizontal"
+            android:layout_weight="1"
             android:orientation="vertical">
 
             <TextView
@@ -33,5 +33,15 @@
                 android:layout_marginTop="@dimen/large_item_text_margin"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Body2" />
         </LinearLayout>
+
+        <ImageView
+            android:id="@+id/check_view"
+            android:layout_width="@dimen/item_tailing_component_size"
+            android:layout_height="@dimen/item_tailing_component_size"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="@dimen/large_item_tailing_margin_horizontal"
+            android:contentDescription="@string/node_check"
+            android:src="@drawable/ic_outline_check_circle"
+            android:visibility="gone" />
     </LinearLayout>
 </layout>

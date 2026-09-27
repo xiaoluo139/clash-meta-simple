@@ -71,7 +71,16 @@ class MainActivity : BaseActivity<Design<*>>() {
                 }
                 design.requests.onReceive {
                     when (it) {
-                        is SimpleDesign.Request.StartWithMode -> {
+                        SimpleDesign.Request.ToggleStatus -> {
+                            if (clashRunning) {
+                                stopClashService()
+                            } else {
+                                design.setConnecting()
+                                startClash(design)
+                            }
+                        }
+                        is SimpleDesign.Request.SelectMode -> {
+                            // 仅切换模式，不触发启动
                             withClash {
                                 val overrideConfig = queryOverride(Clash.OverrideSlot.Persist)
 
@@ -83,12 +92,11 @@ class MainActivity : BaseActivity<Design<*>>() {
                             uiStore.lastStartMode = modeCode(it.mode)
 
                             design.setMode(it.mode)
-                            design.setConnecting()
-                            startClash(design)
                         }
-                        SimpleDesign.Request.Stop -> stopClashService()
                         SimpleDesign.Request.OpenNodes ->
                             startActivity(NodesActivity::class.intent)
+                        SimpleDesign.Request.OpenIpCheck ->
+                            startActivity(IpCheckActivity::class.intent)
                         SimpleDesign.Request.UpdateProfile -> {
                             val active = withProfile { queryActive() }
 
@@ -132,17 +140,7 @@ class MainActivity : BaseActivity<Design<*>>() {
                             uiStore.simpleMode = false
                             recreate()
                         }
-                        is SimpleDesign.Request.PatchMode -> {
-                            withClash {
-                                val overrideConfig = queryOverride(Clash.OverrideSlot.Persist)
 
-                                overrideConfig.mode = it.mode
-
-                                patchOverride(Clash.OverrideSlot.Persist, overrideConfig)
-                            }
-
-                            design.setMode(it.mode)
-                        }
                     }
                 }
                 if (clashRunning) {
@@ -186,8 +184,6 @@ class MainActivity : BaseActivity<Design<*>>() {
         }
 
         setCustomRuleCount(customRuleCount)
-
-        setLastStartMode(modeFromCode(uiStore.lastStartMode))
     }
 
     private companion object {
@@ -201,12 +197,6 @@ class MainActivity : BaseActivity<Design<*>>() {
         else -> -1
     }
 
-    private fun modeFromCode(code: Int): TunnelState.Mode? = when (code) {
-        0 -> TunnelState.Mode.Rule
-        1 -> TunnelState.Mode.Global
-        2 -> TunnelState.Mode.Direct
-        else -> null
-    }
 
     private suspend fun SimpleDesign.fetchTraffic() {
         val forwarded = withClash {
