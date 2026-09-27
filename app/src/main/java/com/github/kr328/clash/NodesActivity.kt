@@ -2,6 +2,8 @@ package com.github.kr328.clash
 
 import com.github.kr328.clash.core.model.Provider
 import com.github.kr328.clash.design.NodesDesign
+import com.github.kr328.clash.util.AutoSelectResult
+import com.github.kr328.clash.util.autoSelectFastestNode
 import com.github.kr328.clash.util.withClash
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
@@ -151,6 +153,12 @@ class NodesActivity : BaseActivity<NodesDesign>() {
         }
     }
 
+    /**
+     * 自动选择最快节点。
+     *
+     * 只考虑「测速通过且延迟有效」的节点（排除节点组、未测速、超时），
+     * 优先 3 秒以内的；若一次测速没有任何可用节点会自动重测一次。
+     */
     private suspend fun autoSelect(design: NodesDesign) {
         val group = design.currentGroup
 
@@ -160,34 +168,27 @@ class NodesActivity : BaseActivity<NodesDesign>() {
             return
         }
 
-        withClash { healthCheck(group) }
+        when (val result = autoSelectFastestNode(uiStore.proxyExcludeNotSelectable, group)) {
+            is AutoSelectResult.Selected -> {
+                reload(design, group)
 
-        val proxyGroup = withClash {
-            queryProxyGroup(group, uiStore.nodeSort)
+                design.setMessage(
+                    getString(DesignR.string.node_auto_selected_delay, result.node, result.delay)
+                )
+            }
+            is AutoSelectResult.Managed -> {
+                reload(design, group)
+
+                design.setMessage(getString(DesignR.string.node_auto_managed))
+            }
+            is AutoSelectResult.NoNode -> {
+                reload(design, group)
+
+                design.setMessage(getString(DesignR.string.node_auto_failed))
+            }
+            AutoSelectResult.NoGroup ->
+                design.setMessage(getString(DesignR.string.node_auto_failed))
         }
-
-        val best = proxyGroup.proxies
-            .filter { !it.isGroup && it.delay in 1..Short.MAX_VALUE }
-            .minByOrNull { it.delay }
-
-        if (best == null) {
-            design.setNodes(proxyGroup.proxies, proxyGroup.now)
-            design.setMessage(getString(DesignR.string.node_auto_failed))
-
-            return
-        }
-
-        val patched = withClash { patchSelector(group, best.name) }
-        val after = withClash { queryProxyGroup(group, uiStore.nodeSort) }
-
-        design.setNodes(after.proxies, after.now)
-
-        design.setMessage(
-            if (patched)
-                getString(DesignR.string.node_auto_selected, best.name)
-            else
-                getString(DesignR.string.node_auto_managed)
-        )
     }
 
     private suspend fun refreshProviders() {

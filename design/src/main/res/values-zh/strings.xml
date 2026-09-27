@@ -399,4 +399,8 @@
     <string name="ip_check">IP 检测</string>
     <string name="ip_check_hint">查看当前出口 IP 与连通性</string>
     <string name="reload_page">刷新页面</string>
+    <string name="node_auto_selected_delay">已自动选择：%1$s（%2$d ms）</string>
+    <string name="node_select_hint">点击任意节点即可切换，当前节点带勾选标记</string>
+    <string name="auto_select_fastest">自动选择最快节点</string>
+    <string name="auto_select_fastest_hint">测速后自动切到延迟最低的可用节点</string>
 </resources>

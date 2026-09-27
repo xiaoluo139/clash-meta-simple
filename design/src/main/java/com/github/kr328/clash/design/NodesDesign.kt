@@ -7,6 +7,7 @@ import com.github.kr328.clash.core.model.ProxySort
 import com.github.kr328.clash.design.adapter.NodeAdapter
 import com.github.kr328.clash.design.databinding.DesignNodesBinding
 import com.github.kr328.clash.design.util.applyFrom
+import com.github.kr328.clash.design.util.blendColor
 import com.github.kr328.clash.design.util.applyLinearAdapter
 import com.github.kr328.clash.design.util.layoutInflater
 import com.github.kr328.clash.design.util.resolveThemedColor
@@ -46,6 +47,11 @@ class NodesDesign(
 
     private val adapter = NodeAdapter(
         context.resolveThemedColor(com.google.android.material.R.attr.colorPrimary),
+        blendColor(
+            context.resolveThemedColor(com.google.android.material.R.attr.colorSurface),
+            context.resolveThemedColor(com.google.android.material.R.attr.colorPrimary),
+            0.12f,
+        ),
         { requests.trySend(Request.Select(it)) },
     )
 

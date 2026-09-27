@@ -12,6 +12,7 @@ import com.github.kr328.clash.design.databinding.AdapterNodeBinding
 
 class NodeAdapter(
     private val selectedColor: Int,
+    private val selectedBackgroundColor: Int,
     private val onSelect: (String) -> Unit,
 ) : RecyclerView.Adapter<NodeAdapter.Holder>() {
 
@@ -55,6 +56,8 @@ class NodeAdapter(
 
         binding.nodeCheckView.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
         binding.nodeCheckView.imageTintList = ColorStateList.valueOf(selectedColor)
+        binding.root.backgroundTintList =
+            if (isSelected) ColorStateList.valueOf(selectedBackgroundColor) else null
 
         binding.root.setOnClickListener { onSelect(proxy.name) }
     }
@@ -64,7 +67,7 @@ class NodeAdapter(
     }
 
     private fun delayText(context: Context, delay: Int): CharSequence = when {
-        delay in 1..MAX_DELAY -> context.getString(R.string.node_delay_ms, delay)
+        delay in 1 until MAX_DELAY -> context.getString(R.string.node_delay_ms, delay)
         delay == 0 -> context.getString(R.string.node_delay_untested)
         else -> context.getString(R.string.node_delay_timeout)
     }
@@ -72,16 +75,18 @@ class NodeAdapter(
     private fun delayColor(delay: Int): Int = when {
         delay in 1..200 -> COLOR_FAST
         delay in 201..500 -> COLOR_MEDIUM
-        delay in 501..MAX_DELAY -> COLOR_SLOW
+        delay in 501..2000 -> COLOR_OK
+        delay in 2001 until MAX_DELAY -> COLOR_SLOW
         delay == 0 -> COLOR_IDLE
         else -> COLOR_SLOW
     }
 
     private companion object {
-        const val MAX_DELAY = Short.MAX_VALUE
+        const val MAX_DELAY = 0xffff   // mihomo 用 uint16 最大值表示超时/不可用
 
         val COLOR_FAST = 0xFF2E7D32.toInt()
         val COLOR_MEDIUM = 0xFFEF6C00.toInt()
+        val COLOR_OK = 0xFFF9A825.toInt()
         val COLOR_SLOW = 0xFFC62828.toInt()
         val COLOR_IDLE = 0xFF9E9E9E.toInt()
     }

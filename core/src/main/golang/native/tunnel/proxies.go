@@ -3,7 +3,7 @@ package tunnel
 import (
 	"sort"
 	"strings"
-
+	"time"
 	"github.com/dlclark/regexp2"
 
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
@@ -165,6 +165,39 @@ func PatchSelector(selector, name string) bool {
 	return true
 }
 
+// freshestTestUrl 返回该节点最近一次测速所用的地址。
+//
+// mihomo 按「测速地址」分别保存延迟历史（ProxyState.Alive + History）。
+// 之前的实现用 map 遍历随机取一个 key，可能取到过期甚至从未测过的地址，
+// LastDelayForTestUrl 会因此返回 0xffff（超时），导致：
+//   - 节点列表里明明能用的节点显示「超时」
+//   - 「自动选择最快节点」选到实际不可用的节点
+// 改为取时间戳最新的那条记录，保证拿到的是最近一次真实测速结果。
+func freshestTestUrl(p C.Proxy) string {
+	var (
+		bestUrl  string
+		bestTime time.Time
+	)
+
+	for url, state := range p.ExtraDelayHistories() {
+		if len(url) == 0 || len(state.History) == 0 {
+			continue
+		}
+
+		last := state.History[len(state.History)-1]
+
+		if bestUrl == "" || last.Time.After(bestTime) {
+			bestUrl = url
+			bestTime = last.Time
+		}
+	}
+
+	if bestUrl == "" {
+		return "https://www.gstatic.com/generate_204"
+	}
+
+	return bestUrl
+}
 func convertProxies(proxies []C.Proxy, uiSubtitlePattern *regexp2.Regexp) []*Proxy {
 	result := make([]*Proxy, 0, 128)
 
@@ -183,13 +216,6 @@ func convertProxies(proxies []C.Proxy, uiSubtitlePattern *regexp2.Regexp) []*Pro
 				}
 			}
 		}
-		testURL := "https://www.gstatic.com/generate_204"
-		for k := range p.ExtraDelayHistories() {
-			if len(k) > 0 {
-				testURL = k
-				break
-			}
-		}
 		_, isGroup := p.Adapter().(outboundgroup.ProxyGroup)
 
 		result = append(result, &Proxy{
@@ -197,7 +223,7 @@ func convertProxies(proxies []C.Proxy, uiSubtitlePattern *regexp2.Regexp) []*Pro
 			Title:    strings.TrimSpace(title),
 			Subtitle: strings.TrimSpace(subtitle),
 			Type:     p.Type().String(),
-			Delay:    int(p.LastDelayForTestUrl(testURL)),
+			Delay:    int(p.LastDelayForTestUrl(freshestTestUrl(p))),
 			IsGroup:  isGroup,
 		})
 	}
@@ -224,13 +250,6 @@ func collectProviders(providers []provider.ProxyProvider, uiSubtitlePattern *reg
 				}
 			}
 
-			testURL := "https://www.gstatic.com/generate_204"
-			for k := range px.ExtraDelayHistories() {
-				if len(k) > 0 {
-					testURL = k
-					break
-				}
-			}
 			_, isGroup := px.Adapter().(outboundgroup.ProxyGroup)
 
 			result = append(result, &Proxy{
@@ -238,7 +257,7 @@ func collectProviders(providers []provider.ProxyProvider, uiSubtitlePattern *reg
 				Title:    strings.TrimSpace(title),
 				Subtitle: strings.TrimSpace(subtitle),
 				Type:     px.Type().String(),
-				Delay:    int(px.LastDelayForTestUrl(testURL)),
+				Delay:    int(px.LastDelayForTestUrl(freshestTestUrl(px))),
 				IsGroup:  isGroup,
 			})
 		}

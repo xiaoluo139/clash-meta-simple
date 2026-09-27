@@ -490,4 +490,8 @@
     <string name="ip_check">IP Check</string>
     <string name="ip_check_hint">Check your exit IP and connectivity</string>
     <string name="reload_page">Reload</string>
+    <string name="node_auto_selected_delay">Auto selected: %1$s (%2$d ms)</string>
+    <string name="node_select_hint">Tap any node to switch — the current one is checked</string>
+    <string name="auto_select_fastest">Auto pick fastest node</string>
+    <string name="auto_select_fastest_hint">Test and switch to the fastest reachable node</string>
 </resources>

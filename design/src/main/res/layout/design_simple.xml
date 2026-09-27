@@ -150,6 +150,13 @@
                     app:text="@string/current_node" />
 
                 <com.github.kr328.clash.design.view.LargeActionLabel
+                    android:id="@+id/autoSelectLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:icon="@drawable/ic_baseline_flash_on"
+                    app:subtext="@string/auto_select_fastest_hint"
+                    app:text="@string/auto_select_fastest" />
+                <com.github.kr328.clash.design.view.LargeActionLabel
                     android:id="@+id/updateProfileLabel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

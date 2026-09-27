@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.view.View
 import com.github.kr328.clash.core.model.TunnelState
 import com.github.kr328.clash.design.databinding.DesignSimpleBinding
+import com.github.kr328.clash.design.util.blendColor
 import com.github.kr328.clash.design.util.layoutInflater
 import com.github.kr328.clash.design.util.resolveThemedColor
 import com.github.kr328.clash.design.util.root
@@ -27,6 +28,7 @@ class SimpleDesign(context: Context) : Design<SimpleDesign.Request>(context) {
         object ToggleStatus : Request()
         data class SelectMode(val mode: TunnelState.Mode) : Request()
         object UpdateProfile : Request()
+        object AutoSelectFastest : Request()
         object OpenNodes : Request()
         object OpenProfiles : Request()
         object OpenAccessControl : Request()
@@ -44,7 +46,7 @@ class SimpleDesign(context: Context) : Design<SimpleDesign.Request>(context) {
 
     private val primaryColor = context.resolveThemedColor(com.google.android.material.R.attr.colorPrimary)
     private val surfaceColor = context.resolveThemedColor(com.google.android.material.R.attr.colorSurface)
-    private val selectedCardColor = blend(surfaceColor, primaryColor, 0.16f)
+    private val selectedCardColor = blendColor(surfaceColor, primaryColor, 0.16f)
 
     private var currentMode: TunnelState.Mode? = null
     private var nodeName: String? = null
@@ -77,6 +79,7 @@ class SimpleDesign(context: Context) : Design<SimpleDesign.Request>(context) {
         binding.advancedButton.setOnClickListener { requests.trySend(Request.OpenAdvanced) }
         binding.profileLabel.setOnClickListener { requests.trySend(Request.OpenProfiles) }
         binding.nodeLabel.setOnClickListener { requests.trySend(Request.OpenNodes) }
+        binding.autoSelectLabel.setOnClickListener { requests.trySend(Request.AutoSelectFastest) }
         binding.updateProfileLabel.setOnClickListener { requests.trySend(Request.UpdateProfile) }
         binding.ipCheckLabel.setOnClickListener { requests.trySend(Request.OpenIpCheck) }
         binding.accessControlLabel.setOnClickListener { requests.trySend(Request.OpenAccessControl) }
@@ -231,11 +234,4 @@ class SimpleDesign(context: Context) : Design<SimpleDesign.Request>(context) {
         else -> null
     }
 
-    private fun blend(base: Int, overlay: Int, ratio: Float): Int {
-        val r = (Color.red(base) * (1 - ratio) + Color.red(overlay) * ratio).toInt()
-        val g = (Color.green(base) * (1 - ratio) + Color.green(overlay) * ratio).toInt()
-        val b = (Color.blue(base) * (1 - ratio) + Color.blue(overlay) * ratio).toInt()
-
-        return Color.rgb(r, g, b)
-    }
 }

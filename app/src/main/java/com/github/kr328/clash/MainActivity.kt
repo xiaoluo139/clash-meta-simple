@@ -23,6 +23,8 @@ import com.github.kr328.clash.design.MainDesign
 import com.github.kr328.clash.design.SimpleDesign
 import com.github.kr328.clash.design.ui.ToastDuration
 import com.github.kr328.clash.service.model.Profile
+import com.github.kr328.clash.util.AutoSelectResult
+import com.github.kr328.clash.util.autoSelectFastestNode
 import com.github.kr328.clash.util.startClashService
 import com.github.kr328.clash.util.stopClashService
 import com.github.kr328.clash.util.withClash
@@ -97,6 +99,23 @@ class MainActivity : BaseActivity<Design<*>>() {
                             startActivity(NodesActivity::class.intent)
                         SimpleDesign.Request.OpenIpCheck ->
                             startActivity(IpCheckActivity::class.intent)
+                        SimpleDesign.Request.AutoSelectFastest -> {
+                            // 首页也能一键自动择优；Global 模式下会作用于 GLOBAL 组
+                            val message = when (val result = autoSelectFastestNode(uiStore.proxyExcludeNotSelectable)) {
+                                is AutoSelectResult.Selected -> getString(
+                                    DesignR.string.node_auto_selected_delay,
+                                    result.node,
+                                    result.delay
+                                )
+                                is AutoSelectResult.Managed -> getString(DesignR.string.node_auto_managed)
+                                is AutoSelectResult.NoNode -> getString(DesignR.string.node_auto_failed)
+                                AutoSelectResult.NoGroup -> getString(DesignR.string.node_empty)
+                            }
+
+                            design.showToast(message, ToastDuration.Long)
+
+                            design.fetch()
+                        }
                         SimpleDesign.Request.UpdateProfile -> {
                             val active = withProfile { queryActive() }
 
