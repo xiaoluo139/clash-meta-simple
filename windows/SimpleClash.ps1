@@ -110,7 +110,8 @@ function Get-ProfileText {
 $OverrideKeys = @(
     'mixed-port', 'port', 'socks-port', 'redir-port', 'tproxy-port',
     'external-controller', 'external-controller-tls', 'external-controller-cors',
-    'secret', 'allow-lan', 'bind-address'
+    'secret', 'allow-lan', 'bind-address',
+    'log-level'
 )
 
 function New-MihomoConfig {
@@ -146,8 +147,23 @@ function Test-MihomoRunning {
     try { return -not $script:MihomoProcess.HasExited } catch { return $false }
 }
 
+function Test-ApiAlive {
+    try {
+        Invoke-MihomoApi -Method GET -Path '/version' | Out-Null
+        return $true
+    } catch {
+        return $false
+    }
+}
+
 function Start-Mihomo {
     if (Test-MihomoRunning) { return }
+
+    # 已经有内核在跑（例如上次没退干净）就直接复用，避免端口冲突
+    if (Test-ApiAlive) {
+        Write-Info '检测到内核已在运行，直接复用'
+        return
+    }
 
     Ensure-Core
     New-MihomoConfig
@@ -155,15 +171,39 @@ function Start-Mihomo {
     $mihomoArgs = @('-d', $DataDir, '-f', $ConfigFile, '-ext-ctl', "127.0.0.1:$ApiPort", '-secret', $ApiSecret)
     Write-Info ('启动内核: mihomo.exe ' + ($mihomoArgs -join ' '))
 
-    $script:MihomoProcess = Start-Process -FilePath $CoreExe -ArgumentList $mihomoArgs -WindowStyle Hidden -PassThru
+    Remove-Item -LiteralPath $LogFile -Force -ErrorAction SilentlyContinue
+
+    $script:MihomoProcess = Start-Process -FilePath $CoreExe -ArgumentList $mihomoArgs -WindowStyle Hidden -PassThru `
+        -RedirectStandardOutput $LogFile -RedirectStandardError "$LogFile.err"
 
     for ($i = 0; $i -lt 40; $i++) {
         Start-Sleep -Milliseconds 250
-        if (-not (Test-MihomoRunning)) { throw '内核启动失败，请检查 data/mihomo.log' }
-        try { Invoke-MihomoApi -Method GET -Path '/version' | Out-Null; return } catch { }
+
+        if (-not (Test-MihomoRunning)) {
+            $detail = ''
+
+            foreach ($f in @("$LogFile.err", $LogFile)) {
+                if (Test-Path -LiteralPath $f) {
+                    $detail = ((Get-Content -LiteralPath $f -Tail 6) -join ' ').Trim()
+                    if ($detail) { break }
+                }
+            }
+
+            if (-not $detail) { $detail = '没有输出，可能是配置文件有问题' }
+
+            throw "内核启动失败：$detail"
+        }
+
+        try { Invoke-MihomoApi -Method GET -Path '/version' | Out-Null; break } catch { }
     }
 
-    throw '内核启动超时'
+    if (-not (Test-ApiAlive)) { throw '内核启动超时' }
+
+    # 应用上次保存的分流模式
+    $settings = Get-Settings
+    if ($settings.mode) {
+        try { Set-Mode -Mode $settings.mode } catch { }
+    }
 }
 
 function Stop-Mihomo {
@@ -304,7 +344,7 @@ function Get-State {
     param([string]$Group)
 
     $settings = Get-Settings
-    $running = Test-MihomoRunning
+    $running = (Test-MihomoRunning) -or (Test-ApiAlive)
 
     $state = [ordered]@{
         running     = $running

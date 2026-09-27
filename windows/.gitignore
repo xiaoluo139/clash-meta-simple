@@ -7,3 +7,4 @@ mihomo.exe
 
 # 编译产物（随发布包分发，不进 git）
 ClashSimple.exe
+ClashSimple.dll

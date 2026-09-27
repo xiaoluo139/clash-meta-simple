@@ -23,8 +23,18 @@ namespace ClashSimple
 {
     internal static class Program
     {
+        /// <summary>供 PowerShell 加载 DLL 后调用（用于绕过「智能应用控制」）</summary>
+        public static void Run()
+        {
+            Net.Configure();
+
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new MainForm());
+        }
+
         [STAThread]
-        private static void Main(string[] args)
+        public static void Main(string[] args)
         {
             // 必须在任何 HTTPS 请求之前执行（默认未开启 TLS 1.2）
             Net.Configure();
@@ -53,9 +63,7 @@ namespace ClashSimple
                 return;
             }
 
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());
+            Run();
         }
     }
 
@@ -126,9 +134,23 @@ namespace ClashSimple
     {
         private static Process _process;
 
-        public static bool Running
+        /// <summary>我们启动的进程是否还活着</summary>
+        public static bool ProcessRunning
         {
             get { return _process != null && !_process.HasExited; }
+        }
+
+        /// <summary>本机是否已有内核在监听控制端口</summary>
+        public static bool ApiAlive()
+        {
+            try { Api("GET", "/version", null); return true; }
+            catch { return false; }
+        }
+
+        /// <summary>对界面而言：进程在跑 或 已有内核可用</summary>
+        public static bool Running
+        {
+            get { return ProcessRunning || ApiAlive(); }
         }
 
         public static void EnsureCore()
@@ -193,7 +215,8 @@ namespace ClashSimple
         {
             "mixed-port", "port", "socks-port", "redir-port", "tproxy-port",
             "external-controller", "external-controller-tls", "external-controller-cors",
-            "secret", "allow-lan", "bind-address"
+            "secret", "allow-lan", "bind-address",
+            "log-level"
         };
 
         private const string DefaultProfile =
@@ -250,12 +273,62 @@ namespace ClashSimple
 {
     internal static partial class Core
     {
+        private static readonly object LogLock = new object();
+
+        private static void AppendLog(string line)
+        {
+            try
+            {
+                lock (LogLock)
+                {
+                    File.AppendAllText(Path.Combine(Env.DataDir, "mihomo.log"), line + "\r\n", Encoding.UTF8);
+                }
+            }
+            catch { }
+        }
+
+        private static string ReadLogTail(int lines)
+        {
+            try
+            {
+                string file = Path.Combine(Env.DataDir, "mihomo.log");
+                if (!File.Exists(file)) return "";
+
+                string[] all = File.ReadAllLines(file);
+                if (all.Length == 0) return "";
+
+                int start = Math.Max(0, all.Length - lines);
+                return string.Join(" ", all, start, all.Length - start).Trim();
+            }
+            catch { return ""; }
+        }
+
+        private static void ApplySavedMode()
+        {
+            try
+            {
+                var s = Env.LoadSettings();
+                if (!string.IsNullOrEmpty(s.mode)) SetMode(s.mode);
+            }
+            catch { }
+        }
+
         public static void Start()
         {
-            if (Running) return;
+            if (ProcessRunning) return;
+
+            // 已经有内核在跑（例如上次没退干净）→ 直接复用，避免端口冲突
+            if (ApiAlive())
+            {
+                ApplySavedMode();
+                return;
+            }
 
             EnsureCore();
             BuildConfig();
+
+            string logFile = Path.Combine(Env.DataDir, "mihomo.log");
+            try { if (File.Exists(logFile)) File.Delete(logFile); } catch { }
 
             var psi = new ProcessStartInfo(Env.CoreExe);
             psi.Arguments = string.Format("-d \"{0}\" -f \"{1}\" -ext-ctl 127.0.0.1:{2} -secret {3}",
@@ -263,15 +336,39 @@ namespace ClashSimple
             psi.WorkingDirectory = Env.Root;
             psi.UseShellExecute = false;
             psi.CreateNoWindow = true;
+            psi.RedirectStandardOutput = true;
+            psi.RedirectStandardError = true;
 
             _process = Process.Start(psi);
+
+            _process.OutputDataReceived += delegate(object s, DataReceivedEventArgs e)
+            {
+                if (e.Data != null) AppendLog(e.Data);
+            };
+            _process.ErrorDataReceived += delegate(object s, DataReceivedEventArgs e)
+            {
+                if (e.Data != null) AppendLog(e.Data);
+            };
+
+            _process.BeginOutputReadLine();
+            _process.BeginErrorReadLine();
 
             for (int i = 0; i < 60; i++)
             {
                 Thread.Sleep(250);
-                if (_process.HasExited) throw new Exception("内核启动失败，请检查 data 目录");
-                try { Api("GET", "/version", null); return; }
-                catch { }
+
+                if (_process.HasExited)
+                {
+                    string detail = ReadLogTail(6);
+                    if (string.IsNullOrEmpty(detail)) detail = "没有输出，可能是配置文件有问题";
+                    throw new Exception("内核启动失败：" + detail);
+                }
+
+                if (ApiAlive())
+                {
+                    ApplySavedMode();
+                    return;
+                }
             }
 
             throw new Exception("内核启动超时");
@@ -283,7 +380,17 @@ namespace ClashSimple
 
             try
             {
-                if (Running) _process.Kill();
+                if (_process != null && !_process.HasExited) _process.Kill();
+            }
+            catch { }
+
+            // 复用的残留实例（我们没持有进程句柄）按进程名结束
+            try
+            {
+                foreach (var p in Process.GetProcessesByName("mihomo"))
+                {
+                    try { p.Kill(); } catch { }
+                }
             }
             catch { }
 
