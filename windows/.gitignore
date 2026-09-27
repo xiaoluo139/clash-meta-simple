@@ -4,3 +4,6 @@ mihomo.exe
 
 # 运行时生成
 /data/
+
+# 编译产物（随发布包分发，不进 git）
+ClashSimple.exe

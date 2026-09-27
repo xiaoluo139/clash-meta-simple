@@ -83,14 +83,15 @@
 
 ## 🖥️ Windows 版
 
-同一个仓库里还有一个 Windows 客户端（`windows/` 目录），内核同样是 **mihomo**。
+同一个仓库里还有一个 **原生 Windows 桌面程序**（`windows/` 目录），内核同样是 **mihomo**。
 
 ### 下载
 
-到 **[Releases](../../releases)** 下载 `ClashSimple-Windows-*.zip`，**解压后双击 `Start.bat`** 即可。
+到 **[Releases](../../releases)** 下载 `ClashSimple-Windows-*.zip`，解压后**双击 `ClashSimple.exe`** 即可。
 
-> 压缩包已内置 `mihomo.exe`（v1.19.31），开箱即用；
-> 如果自己删掉了内核，首次启动会自动从 mihomo 官方仓库下载。
+> - **原生 WinForms 程序**（单个 32 KB 的 exe），不是脚本、不是套壳浏览器
+> - 压缩包已内置 `mihomo.exe`（v1.19.31），开箱即用
+> - 不需要装 Python / Node / .NET SDK，Windows 10 / 11 自带 .NET Framework 4.x 就能跑
 
 ### 界面与交互
 
@@ -116,10 +117,10 @@ Windows 端调用内核的 `/group/{分组}/delay` 接口，**该接口只返回
 
 ```
 windows/
-├── Start.bat          双击启动
-├── SimpleClash.ps1    主程序（本地 HTTP 服务 + 内核管理 + 系统代理）
-├── ui.html            界面
-└── core/              mihomo.exe（发布包内置，缺失时自动下载）
+├── src/ClashSimple.cs   原生 WinForms 主程序源码
+├── build.ps1            一键编译（用系统自带 csc，无需 SDK）
+├── core/                mihomo.exe（发布包内置，缺失时自动下载）
+└── SimpleClash.ps1      （备用）PowerShell 脚本版
 ```
 
 详见 [`windows/README.md`](./windows/README.md)。
